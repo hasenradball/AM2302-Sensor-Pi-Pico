@@ -1,0 +1,47 @@
+name: Compile Examples
+
+on: [push, pull_request]
+
+jobs:
+  build-pipicow:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fqbn: [rp2040:rp2040:rpipico, rp2040:rp2040:rpipico]
+        core: [5.5.0]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+        with:
+          version: "1.4.0"
+
+      - name: init arduino-cli
+        run: |
+          arduino-cli config init
+
+      - name: Add 3rd party Lib for rp2040 boards manager
+        run: |
+          arduino-cli config add board_manager.additional_urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+
+      - name: Update package index
+        run: |
+          arduino-cli core update-index
+
+      - name: install rp2040 core
+        run: |
+          arduino-cli core install rp2040:rp2040
+
+      - name: Compile Pi Pico  examples with -Wall -Wextra -Werror
+        run: |
+          set -e
+          for ino in \
+            ./examples/AM2302-Sensor_health_check/AM2302-Sensor_health_check.ino \
+            ./examples/AM2302-Sensor_Example/AM2302-Sensor_Example.ino; do
+            echo "Compiling $ino for ${{ matrix.fqbn }}"
+            arduino-cli compile --library ./ --fqbn ${{ matrix.fqbn }} \
+              --build-property 'compiler.cpp.extra_flags=-Wall -Wextra -Werror' \
+              --build-property 'compiler.c.extra_flags=-Wall -Wextra -Werror' \
+              "$ino"
+          done
